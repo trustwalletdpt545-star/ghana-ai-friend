@@ -11,6 +11,29 @@ import {
 } from "lucide-react";
 import { loadThreads, saveThreads, upsertThread, newId, flagFromLocale, type Thread } from "@/lib/threads";
 import { offlineAnswer } from "@/lib/offline";
+import { needsLive } from "@/lib/liveData";
+
+function LiveClock() {
+  const [t, setT] = useState("");
+  useEffect(() => {
+    const f = () => setT(new Date().toLocaleTimeString("en-GB", { timeZone: "Africa/Accra" }));
+    f();
+    const i = setInterval(f, 1000);
+    return () => clearInterval(i);
+  }, []);
+  return (
+    <span className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">
+      <span className="live-dot" /> LIVE • Accra: <span className="tabular-nums">{t || "--:--:--"}</span> • GMT
+    </span>
+  );
+}
+
+function useLiveSetting() {
+  const [on, setOn] = useState(true);
+  useEffect(() => { setOn(localStorage.getItem("cai-live") !== "off"); }, []);
+  const set = (v: boolean) => { setOn(v); localStorage.setItem("cai-live", v ? "on" : "off"); window.dispatchEvent(new Event("live-changed")); };
+  return [on, set] as const;
+}
 
 export const Route = createFileRoute("/chat/$threadId")({
   head: () => ({
@@ -91,6 +114,7 @@ function ChatPage() {
             </div>
           ))}
         </nav>
+        <LiveSettings />
         <button onClick={clearAll} className="m-3 flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-destructive">
           <Trash2 className="size-4" /> Clear history
         </button>
@@ -101,8 +125,13 @@ function ChatPage() {
         <header className="flex items-center gap-2 border-b border-border px-3 py-3">
           <button className="md:hidden p-1" onClick={() => setSidebar(true)} aria-label="Open menu"><Menu className="size-5" /></button>
           <h1 className="font-display truncate text-base font-semibold md:text-lg">
-            Comfortable AI 🌍 <span className="text-muted-foreground font-normal">— Ask Me Anything International</span>
+            Comfortable AI 🌍 <span className="text-muted-foreground font-normal hidden sm:inline">— Ask Me Anything International</span>
           </h1>
+          <div className="ml-auto flex items-center gap-1.5">
+            <span className="hidden lg:inline rounded-full border border-border px-2 py-1 text-xs">🌍 International Live</span>
+            <span className="hidden lg:inline rounded-full border border-border px-2 py-1 text-xs">📰 Live News</span>
+            <LiveClock />
+          </div>
         </header>
         {loaded && <ChatWindow key={threadId} threadId={threadId} initial={loaded} />}
       </main>
@@ -120,6 +149,7 @@ function ChatWindow({ threadId, initial }: { threadId: string; initial: UIMessag
   const [flag, setFlag] = useState("🌍");
   const [listening, setListening] = useState(false);
   const [online, setOnline] = useState(true);
+  const [searching, setSearching] = useState(false);
   const recRef = useRef<any>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -127,7 +157,7 @@ function ChatWindow({ threadId, initial }: { threadId: string; initial: UIMessag
   langRef.current = lang;
 
   const transport = useMemo(
-    () => new DefaultChatTransport({ api: "/api/chat", body: () => ({ conversationId: threadId, language: langRef.current }) }),
+    () => new DefaultChatTransport({ api: "/api/chat", body: () => ({ conversationId: threadId, language: langRef.current, live: localStorage.getItem("cai-live") !== "off", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }) }),
     [threadId],
   );
   const { messages, sendMessage, status, stop, regenerate, setMessages } = useChat({
@@ -178,6 +208,7 @@ function ChatWindow({ threadId, initial }: { threadId: string; initial: UIMessag
       upsertThread(threadId, ms);
       return;
     }
+    setSearching(localStorage.getItem("cai-live") !== "off" && needsLive(t));
     sendMessage({ text: t });
   };
 
@@ -218,7 +249,7 @@ function ChatWindow({ threadId, initial }: { threadId: string; initial: UIMessag
               <Bubble key={m.id} m={m} flag={flag} isLast={i === messages.length - 1} busy={busy} onRegenerate={() => regenerate()} />
             ))}
             {status === "submitted" && (
-              <div className="flex gap-3"><Avatar /><div className="typing flex gap-1 pt-3"><span /><span /><span /></div></div>
+              <div className="flex gap-3"><Avatar />{searching ? <p className="animate-pulse pt-1.5 text-sm text-accent">🔍 Searching live international web…</p> : <div className="typing flex gap-1 pt-3"><span /><span /><span /></div>}</div>
             )}
             <div ref={endRef} />
           </div>
@@ -256,7 +287,7 @@ function ChatWindow({ threadId, initial }: { threadId: string; initial: UIMessag
             </div>
           </div>
         </form>
-        <p className="mt-2 text-center text-xs text-muted-foreground">Built in Ghana for the World 🇬🇭🌍 — nursecare-gh + comfortable-ai</p>
+        <p className="mt-2 text-center text-xs text-muted-foreground">Live international data • Updates every second • Built in Ghana for the World 🇬🇭🌍 — nursecare-gh + comfortable-ai</p>
       </div>
     </>
   );
@@ -305,5 +336,19 @@ function IconBtn({ label, onClick, active, children }: { label: string; onClick:
     <button onClick={onClick} aria-label={label} title={label} className={`rounded-md p-1.5 hover:bg-secondary hover:text-foreground ${active ? "text-primary" : ""}`}>
       {children}
     </button>
+  );
+}
+
+function LiveSettings() {
+  const [on, set] = useLiveSetting();
+  return (
+    <div className="mx-3 mt-2 rounded-xl border border-border p-3 text-xs">
+      <p className="mb-2 font-semibold uppercase tracking-wider text-muted-foreground">Settings</p>
+      <label className="flex cursor-pointer items-center justify-between gap-2 text-sm">
+        Enable Live International Search
+        <input type="checkbox" checked={on} onChange={(e) => set(e.target.checked)} className="size-4 accent-[var(--primary)]" />
+      </label>
+      <p className="mt-2 text-muted-foreground">Free sources: Google News, DuckDuckGo, Wikipedia, wttr.in weather — no key needed.</p>
+    </div>
   );
 }
