@@ -183,7 +183,7 @@ function ChatWindow({ threadId, initial }: { threadId: string; initial: UIMessag
 
   const toggleMic = () => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) return toast.error("Voice input isn't supported in this browser. Try Chrome.");
+    if (!SR) { toast.error("Voice input isn't supported in this browser. Try Chrome."); return; }
     if (listening) { recRef.current?.stop(); return; }
     const rec = new SR();
     rec.lang = lang === "French" ? "fr-FR" : navigator.language || "en-GH";
