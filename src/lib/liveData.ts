@@ -27,7 +27,7 @@ async function googleNews(query: string) {
   const r = await fetch(url, { headers: UA, signal: AbortSignal.timeout(5000) });
   const xml = await r.text();
   const items = [...xml.matchAll(/<item>[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?<pubDate>([\s\S]*?)<\/pubDate>/g)].slice(0, 6);
-  return items.map((m) => `• ${m[1].replace(/<!\[CDATA\[|\]\]>/g, "").replace(/&amp;/g, "&").replace(/&#39;/g, "'").replace(/&quot;/g, '"')} (${m[2]})`).join("\n");
+  return items.map((m) => `• ${(m[1] ?? "").replace(/<!\[CDATA\[|\]\]>/g, "").replace(/&amp;/g, "&").replace(/&#39;/g, "'").replace(/&quot;/g, '"')} (${m[2]})`).join("\n");
 }
 
 export async function liveSearchInternational(query: string) {
