@@ -130,3 +130,5 @@ body { font-family: var(--font-sans); }
 .prose-chat table { width: 100%; border-collapse: collapse; font-size: .92em; }
 .prose-chat th,.prose-chat td { border: 1px solid var(--border); padding: .4em .7em; text-align: left; }
 .prose-chat blockquote { border-left: 3px solid var(--gh-gold); padding-left: 1em; color: var(--muted-foreground); }
+.live-dot { width: 8px; height: 8px; border-radius: 9999px; background: var(--gh-green); box-shadow: 0 0 0 0 var(--gh-green); animation: livepulse 1.6s infinite; }
+@keyframes livepulse { 0% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--gh-green) 70%, transparent) } 100% { box-shadow: 0 0 0 8px transparent } }
