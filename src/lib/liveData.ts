@@ -50,6 +50,46 @@ export async function liveSearchInternational(query: string) {
   return out.join("\n\n") || null;
 }
 
+type TavilyItem = { title: string; url: string; content?: string; published_date?: string };
+async function tavily(apiKey: string, body: Record<string, unknown>) {
+  const r = await fetch("https://api.tavily.com/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({ api_key: apiKey, topic: "news", days: 2, ...body }),
+    signal: AbortSignal.timeout(12000),
+  });
+  if (!r.ok) throw new Error(`tavily ${r.status}`);
+  return (await r.json()) as { answer?: string; results?: TavilyItem[] };
+}
+const sourceName = (url: string) => {
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return "Source"; }
+};
+const fmt = (items: TavilyItem[] = []) =>
+  items.length
+    ? items.map((i) => `• ${i.title}${i.published_date ? ` (${i.published_date})` : ""} — [${sourceName(i.url)}](${i.url})`).join("\n")
+    : "No verified news right now";
+
+export const isNewsQuery = (q: string) => /news|headline|breaking|happening|latest|today|current/i.test(q);
+
+/** Two Tavily calls: world + Ghana. Returns formatted sections or null if no key. */
+export async function tavilyNews(apiKey: string, topic?: string, region?: string) {
+  const extra = topic ? ` ${topic}` : "";
+  const [world, ghana] = await Promise.all([
+    tavily(apiKey, {
+      query: `world breaking news today${extra}${region ? ` ${region}` : ""}`,
+      include_answer: true, search_depth: "advanced", max_results: 8,
+      include_domains: ["bbc.com", "reuters.com", "apnews.com", "cnn.com", "aljazeera.com"],
+    }).catch(() => null),
+    tavily(apiKey, {
+      query: `Ghana breaking news today${extra}`,
+      search_depth: "advanced", max_results: 6,
+      include_domains: ["myjoyonline.com", "citinewsroom.com", "graphic.com.gh"],
+    }).catch(() => null),
+  ]);
+  if (!world && !ghana) return null;
+  return `🌍 WORLD NEWS\n${world?.answer ? `Summary: ${world.answer}\n` : ""}${fmt(world?.results)}\n\n🇬🇭 GHANA NEWS\n${fmt(ghana?.results)}`;
+}
+
 export async function getWeather(city = "Accra") {
   try {
     const data = await getJson(`https://wttr.in/${encodeURIComponent(city)}?format=j1`, 6000);
