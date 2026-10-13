@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { convertToModelMessages, type UIMessage } from "ai";
 import { createResponsesCall } from "@/lib/ai/responses.server";
-import { getLiveTime, needsLive, liveSearchInternational, getWeather, detectCity } from "@/lib/liveData";
+import { getLiveTime, needsLive, liveSearchInternational, getWeather, detectCity, isNewsQuery, tavilyNews } from "@/lib/liveData";
 
 const SYSTEM = `You are Comfortable AI 🌍 — a warm, brilliant international assistant built in Ghana for the world.
 You answer EVERYTHING: nursing (NCLEX, RGN, RM, midwifery, pharmacology, care plans), education (BECE, WASSCE, university, math, science), Ghana culture, history, food (jollof, waakye, fufu, banku), current affairs, coding, health, careers (CVs, cover letters), jokes and translations.
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/api/chat")({
       POST: async ({ request }) => {
         const apiKey = process.env['LOVABLE_API_KEY'];
         if (!apiKey) return new Response("AI is not configured", { status: 500 });
-        let body: { messages?: UIMessage[]; language?: string; live?: boolean; timezone?: string };
+        let body: { messages?: UIMessage[]; language?: string; live?: boolean; timezone?: string; topic?: string; region?: string };
         try {
           body = await request.json();
         } catch {
@@ -34,15 +34,22 @@ export const Route = createFileRoute("/api/chat")({
         const t = getLiveTime(body.timezone);
         let live = `\n\nLIVE CONTEXT:\n- Ghana time (Accra, GMT): ${t.ghana}\n- UTC: ${t.utc}\n- User local time: ${t.userLocal || "unknown"} (${t.timezone})`;
         if (body.live !== false && needsLive(q)) {
+          const tavilyKey = process.env['TAVILY_API_KEY'];
+          if (tavilyKey && isNewsQuery(q)) {
+            const news = await tavilyNews(tavilyKey, body.topic, body.region);
+            if (news) {
+              live += `\n\nVERIFIED LIVE NEWS (Tavily, trusted outlets only):\n${news}\n\nReply with exactly two sections: "🌍 WORLD NEWS" and "🇬🇭 GHANA NEWS". Start with "✅ Live update as of ${t.ghana} (Ghana time)". Each item is one bullet ending with its [Source Name](url) markdown link copied exactly. Use ONLY these items — never invent headlines or links. If a section says "No verified news right now", write that line for the section.`;
+            }
+          }
           const [search, weather] = await Promise.all([
-            liveSearchInternational(q),
+            live.includes("VERIFIED LIVE NEWS") ? Promise.resolve(null) : liveSearchInternational(q),
             /weather|temperature|rain/i.test(q) ? getWeather(detectCity(q)) : Promise.resolve(null),
           ]);
           if (search) live += `\n\nLIVE WEB SEARCH RESULTS for "${q}":\n${search}`;
           if (weather) live += `\n\nLIVE WEATHER: ${weather}`;
-          live += search || weather
-            ? `\n\nUse the live data above. Start current-info answers with "✅ Live update as of ${t.ghana} (Ghana time)". For news, format as "📰 LIVE NEWS" with 3-5 bullet headlines and dates, then "Source: Live web search".`
-            : `\n\nLive search returned nothing. Say "Live search limited, but as of ${t.ghana}..." and answer from knowledge.`;
+          if (search) live += `\n\nUse the live data above. Start current-info answers with "✅ Live update as of ${t.ghana} (Ghana time)". Show sources.`;
+          else if (!weather && !live.includes("VERIFIED LIVE NEWS"))
+            live += `\n\nLive search returned nothing. Say "No verified news right now" for news, otherwise answer from knowledge noting the time ${t.ghana}.`;
         }
         const messages = await convertToModelMessages(body.messages.slice(-30));
         return createResponsesCall(
