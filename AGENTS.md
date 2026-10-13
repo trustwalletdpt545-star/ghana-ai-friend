@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Format verified news deterministically through the shared news formatter, not an AI rewrite, so both sections always preserve supplied source links and never invent stories.
+- Refresh existing news messages through the dedicated news server function and interval hook without regenerating other chat answers, preserving conversation history and avoiding extra AI requests.
