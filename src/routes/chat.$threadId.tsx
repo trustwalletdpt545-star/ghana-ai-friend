@@ -12,6 +12,9 @@ import {
 import { loadThreads, saveThreads, upsertThread, newId, flagFromLocale, type Thread } from "@/lib/threads";
 import { offlineAnswer } from "@/lib/offline";
 import { needsLive } from "@/lib/liveData";
+import { useServerFn } from "@tanstack/react-start";
+import { refreshLiveNews } from "@/lib/news.functions";
+import { useNewsRefresh } from "@/lib/use-news-refresh";
 
 function LiveClock() {
   const [t, setT] = useState("");
@@ -30,7 +33,12 @@ function LiveClock() {
 
 function useLiveSetting() {
   const [on, setOn] = useState(true);
-  useEffect(() => { setOn(localStorage.getItem("cai-live") !== "off"); }, []);
+  useEffect(() => {
+    const sync = () => setOn(localStorage.getItem("cai-live") !== "off");
+    sync();
+    window.addEventListener("live-changed", sync);
+    return () => window.removeEventListener("live-changed", sync);
+  }, []);
   const set = (v: boolean) => { setOn(v); localStorage.setItem("cai-live", v ? "on" : "off"); window.dispatchEvent(new Event("live-changed")); };
   return [on, set] as const;
 }
@@ -176,6 +184,9 @@ function ChatWindow({ threadId, initial }: { threadId: string; initial: UIMessag
     },
   });
   const busy = status === "submitted" || status === "streaming";
+  const [liveEnabled] = useLiveSetting();
+  const fetchNews = useServerFn(refreshLiveNews);
+  useNewsRefresh({ messages, enabled: online && liveEnabled, busy, fetchNews, setMessages });
 
   useEffect(() => {
     setFlag(flagFromLocale(navigator.language));
@@ -287,7 +298,7 @@ function ChatWindow({ threadId, initial }: { threadId: string; initial: UIMessag
             </div>
           </div>
         </form>
-        <p className="mt-2 text-center text-xs text-muted-foreground">Live international data • Updates every second • Built in Ghana for the World 🇬🇭🌍 — nursecare-gh + comfortable-ai</p>
+        <p className="mt-2 text-center text-xs text-muted-foreground">Built in Ghana for the World 🇬🇭🌍 — nursecare-gh + comfortable-ai</p>
       </div>
     </>
   );
@@ -315,7 +326,10 @@ function Bubble({ m, flag, isLast, busy, onRegenerate }: { m: UIMessage; flag: s
       <Avatar />
       <div className="min-w-0 flex-1">
         {reasoning && !text && <p className="mb-2 text-sm italic text-muted-foreground line-clamp-3">Thinking… {reasoning}</p>}
-        <div className="prose-chat"><ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown></div>
+        <div className="prose-chat"><ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+          a: ({ children, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer">{children}</a>,
+          img: ({ src, alt }) => <img src={src} alt={alt || "News photo"} loading="lazy" referrerPolicy="no-referrer" className="my-2 inline-block h-28 w-44 max-w-full rounded-md object-cover" onError={(event) => { event.currentTarget.hidden = true; }} />,
+        }}>{text}</ReactMarkdown></div>
         {!(isLast && busy) && text && (
           <div className="mt-2 flex gap-1 text-muted-foreground">
             <IconBtn label="Copy" onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}>

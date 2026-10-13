@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { convertToModelMessages, type UIMessage } from "ai";
+import { convertToModelMessages, createUIMessageStream, createUIMessageStreamResponse, type UIMessage } from "ai";
 import { createResponsesCall } from "@/lib/ai/responses.server";
 import { getLiveTime, needsLive, liveSearchInternational, getWeather, detectCity, isNewsQuery, tavilyNews } from "@/lib/liveData";
 
@@ -36,9 +36,16 @@ export const Route = createFileRoute("/api/chat")({
         if (body.live !== false && needsLive(q)) {
           const tavilyKey = process.env['TAVILY_API_KEY'];
           if (tavilyKey && isNewsQuery(q)) {
-            const news = await tavilyNews(tavilyKey, body.topic, body.region);
+            const news = await tavilyNews(tavilyKey, body.topic, body.region).catch(() => null);
             if (news) {
-              live += `\n\nVERIFIED LIVE NEWS (Tavily, trusted outlets only):\n${news}\n\nReply with exactly two sections: "🌍 WORLD NEWS" and "🇬🇭 GHANA NEWS". Start with "✅ Live update as of ${t.ghana} (Ghana time)". Each item is one bullet ending with its [Source Name](url) markdown link copied exactly. Use ONLY these items — never invent headlines or links. If a section says "No verified news right now", write that line for the section.`;
+              const text = `✅ Live update as of ${t.ghana} (Ghana time)\n\n${news}`;
+              return createUIMessageStreamResponse({ stream: createUIMessageStream({
+                execute: ({ writer }) => {
+                  writer.write({ type: "text-start", id: "live-news" });
+                  writer.write({ type: "text-delta", id: "live-news", delta: text });
+                  writer.write({ type: "text-end", id: "live-news" });
+                },
+              }) });
             }
           }
           const [search, weather] = await Promise.all([
