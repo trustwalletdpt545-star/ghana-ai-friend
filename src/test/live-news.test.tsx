@@ -52,7 +52,9 @@ describe("Five-minute refresh", () => {
     await act(() => vi.advanceTimersByTimeAsync(1));
     expect(fetchNews).toHaveBeenCalledTimes(1);
     const user: UIMessage = { id: "user", role: "user", parts: [{ type: "text", text: "News today?" }] };
-    const result = setMessages.mock.calls[0][0]([user, message]);
+    const updater = setMessages.mock.calls[0]?.[0];
+    expect(updater).toBeDefined();
+    const result = updater!([user, message]);
     expect(result[0]).toEqual(user);
     expect(result[1]).toEqual({ ...message, parts: [{ type: "text", text: "Fresh verified news" }] });
     unmount();
