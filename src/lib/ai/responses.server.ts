@@ -1,11 +1,5 @@
-import { createOpenAI } from "@ai-sdk/openai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { streamText, type ModelMessage } from "ai";
-
-import {
-  createLovableAiGatewayRunIdFetch,
-  getLovableAiGatewayRunId,
-  withLovableAiGatewayRunIdHeader,
-} from "./run-id.server";
 
 export function createResponsesCall(
   request: Request,
@@ -13,37 +7,22 @@ export function createResponsesCall(
   messages: ModelMessage[],
   instructions?: string,
 ) {
-  const runIdFetch = createLovableAiGatewayRunIdFetch(getLovableAiGatewayRunId(request));
-  const provider = createOpenAI({
-    baseURL: `${config.baseURL.replace(/\/+$/, "").replace(/\/v1$/, "")}/v1`,
-    apiKey: config.apiKey,
-    headers: { "Lovable-API-Key": config.apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
-    fetch: runIdFetch.fetch,
+  // Use GEMINI_API_KEY from Vercel env - FREE, no Lovable credit needed
+  const apiKey = config.apiKey || (process.env as any).GEMINI_API_KEY || "";
+  
+  const google = createGoogleGenerativeAI({
+    apiKey: apiKey,
   });
-  const reasoning = config.model !== "openai/chat-latest";
+
+  // Force Gemini model for Ghana AI Friend
+  const modelName = config.model?.includes("gemini") ? config.model : "gemini-1.5-flash";
+  
   const result = streamText({
-    model: provider.responses(config.model),
-    // AI SDK 6 lacks `instructions`: rename this key to `system` there.
-    ...(instructions ? { instructions } : {}),
+    model: google(modelName),
+    system: instructions || "You are Comfortable AI, Ghana's helpful AI assistant. You are ALWAYS LIVE. Answer warmly in English with some Ghanaian Pidgin when natural. You are built by a Ghanaian developer.",
     messages,
     abortSignal: request.signal,
-    providerOptions: {
-      openai: {
-        store: false,
-        ...(reasoning
-          ? {
-              forceReasoning: true,
-              reasoningEffort: "medium",
-              reasoningSummary: "auto",
-              include: ["reasoning.encrypted_content"],
-            }
-          : {}),
-      },
-    },
   });
-  return {
-    result,
-    response: () =>
-      withLovableAiGatewayRunIdHeader(result.toUIMessageStreamResponse({ sendReasoning: true }), runIdFetch),
-  };
+
+  return result;
 }
