@@ -1,5 +1,11 @@
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAI } from "@ai-sdk/openai";
 import { streamText, type ModelMessage } from "ai";
+
+import {
+  createLovableAiGatewayRunIdFetch,
+  getLovableAiGatewayRunId,
+  withLovableAiGatewayRunIdHeader,
+} from "./run-id.server";
 
 export function createResponsesCall(
   request: Request,
@@ -7,19 +13,22 @@ export function createResponsesCall(
   messages: ModelMessage[],
   instructions?: string,
 ) {
-  // Use GEMINI_API_KEY from Vercel env - FREE, no Lovable credit needed
-  const apiKey = config.apiKey || (process.env as any).GEMINI_API_KEY || "";
-  
-  const google = createGoogleGenerativeAI({
-    apiKey: apiKey,
+  // Use GEMINI API key from env - FREE
+  const geminiKey = (config.apiKey && config.apiKey.startsWith("AIza") ? config.apiKey : null) 
+    || (process.env as any).GEMINI_API_KEY 
+    || config.apiKey;
+
+  // Use Gemini's OpenAI-compatible endpoint - works with existing SDK
+  const provider = createOpenAI({
+    baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+    apiKey: geminiKey,
   });
 
-  // Force Gemini model for Ghana AI Friend
   const modelName = config.model?.includes("gemini") ? config.model : "gemini-1.5-flash";
-  
+
   const result = streamText({
-    model: google(modelName),
-    system: instructions || "You are Comfortable AI, Ghana's helpful AI assistant. You are ALWAYS LIVE. Answer warmly in English with some Ghanaian Pidgin when natural. You are built by a Ghanaian developer.",
+    model: provider.responses(modelName),
+    ...(instructions ? { instructions } : {}),
     messages,
     abortSignal: request.signal,
   });
