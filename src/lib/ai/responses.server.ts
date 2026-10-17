@@ -1,23 +1,16 @@
-import { createOpenAI } from "@ai-sdk/openai";
-import { streamText, type ModelMessage } from "ai";
-
-export function createResponsesCall(
-  request: Request,
-  config: { baseURL: string; apiKey: string; model: string },
-  messages: ModelMessage[],
-  instructions?: string,
-) {
-  const geminiKey = (process.env as any).GEMINI_API_KEY || config.apiKey || "";
+export async function getAIResponse(prompt: string) {
+  const apiKey = process.env.GEMINI_API_KEY || "";
+  if (!apiKey) return "I'm offline now, but I'll be back soon!";
   
-  const openaiProvider = createOpenAI({
-    baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-    apiKey: geminiKey,
-  });
-
-  return streamText({
-    model: openaiProvider("gemini-1.5-flash"),
-    system: instructions || "You are Comfortable AI, Ghana's AI assistant. You are ALWAYS ONLINE. Never say you are offline. Be helpful, warm, friendly, use some Ghana Pidgin when appropriate.",
-    messages,
-    abortSignal: request.signal,
-  } as any);
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({contents:[{parts:[{text: prompt}]}]})
+    });
+    const data = await res.json();
+    return data?.candidates?.[0]?.content?.parts?.[0]?.text || "Hello! How can I help you today?";
+  } catch {
+    return "I'm having connection issues, try again!";
+  }
 }
