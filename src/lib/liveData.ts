@@ -1,20 +1,20 @@
-// Fix for Vercel Build - all required exports
-export function detectCity(_input?: any){ return "Accra"; }
-export function getLiveTime(){ return new Date().toISOString(); }
-export function needsLive(){ return false; }
-export function isLiveRequired(){ return false; }
-export function shouldUseLive(){ return true; }
-export function getLiveMode(){ return "live" as const; }
+export function getLiveTime(tz?: any){ try{ return new Date().toLocaleString('en-US',{timeZone: tz||'Africa/Accra'}) }catch{ return new Date().toISOString() } }
+export function needsLive(_q?: any){ return true; }
+export function detectCity(_q?: any){ return "Accra"; }
+export function liveSearch(_q?: any){ return null; }
+export function isNewsQuery(_q?: any){ return false; }
+export async function tavilyNews(_q?: any){ return null; }
 export function getLiveData(){ return {}; }
 export function getLiveWeather(){ return null; }
 export function getLiveLocation(){ return "Ghana"; }
 export function getCity(){ return "Accra"; }
-export function liveTime(){ return new Date().toISOString(); }
-
-export const LIVE_ALWAYS = true;
-export const FORCE_LIVE = true;
-export const liveData = {};
-export const liveLocation = "Ghana";
-export const liveMode = "live";
-export const liveWeather = null;
-export const live = true;
+export function isLiveRequired(){ return false; }
+export function shouldUseLive(){ return true; }
+export function getLiveMode(){ return "live" as const; }
+export const LIVE_ALWAYS=true;
+export const FORCE_LIVE=true;
+export const liveData={};
+export const liveLocation="Ghana";
+export const liveMode="live";
+export const live=true;
+export default {};
