@@ -16,7 +16,7 @@ export function createResponsesCall(
 
   return streamText({
     model: openaiProvider("gemini-1.5-flash"),
-    system: instructions || "You are Comfortable AI, Ghana's AI assistant. ALWAYS LIVE. Never say offline. Be helpful, warm, use some Ghana Pidgin.",
+    system: instructions || "You are Comfortable AI, Ghana's AI assistant. You are ALWAYS ONLINE. Never say you are offline. Be helpful, warm, friendly, use some Ghana Pidgin when appropriate.",
     messages,
     abortSignal: request.signal,
   } as any);
