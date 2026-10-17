@@ -1,36 +1,45 @@
-import { createServerFileRoute } from '@tanstack/react-start'
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 
-export const ServerRoute = createServerFileRoute('/api/chat').methods({
-  POST: async ({ request }) => {
-    try {
-      const { message } = await request.json() as { message: string }
-      const GROQ_KEY = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY
-
-      if (!GROQ_KEY) {
-        return new Response(JSON.stringify({ reply: "❌ GROQ_API_KEY missing in Vercel" }), { status: 200, headers: { 'Content-Type': 'application/json' } })
-      }
-
-      const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${GROQ_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [
-            { role: 'system', content: 'You are Comfortable AI - Ghana AI Friend. Built by nursecare-gh + comfortable-ai in Accra, Ghana. You are NOT OpenAI, NOT ChatGPT. You are Ghanaian AI Friend. Be proud Ghanaian, helpful.' },
-            { role: 'user', content: message }
-          ]
-        })
-      })
-
-      const data = await groqRes.json()
-      const reply = data.choices?.[0]?.message?.content || "Groq error"
-      return new Response(JSON.stringify({ reply }), { headers: { 'Content-Type': 'application/json' } })
-
-    } catch (e: any) {
-      return new Response(JSON.stringify({ reply: "Server Error: " + e.message }), { headers: { 'Content-Type': 'application/json' } })
+export const POST: RequestHandler = async ({ request }) => {
+  try {
+    const body = await request.json();
+    const userMsg = body.message || body.messages?.[body.messages.length-1]?.content || "hi";
+    
+    const groqKey = process.env.GROQ_API_KEY;
+    if (!groqKey) {
+      return json({ reply: "⚠️ GROQ_API_KEY missing! Add it in Vercel → Settings → Environment Variables" });
     }
-  },
-  GET: async () => {
-    return new Response(JSON.stringify({ status: 'Ghana AI Live 🇬🇭' }), { headers: { 'Content-Type': 'application/json' } })
+
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${groqKey}`
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages: [
+          { role: "system", content: "You are Ghana AI Friend, built in Ghana for the World. You live in Accra. Be helpful, friendly, and knowledgeable about Ghana and world." },
+          { role: "user", content: userMsg }
+        ]
+      })
+    });
+
+    const data: any = await res.json();
+    
+    if (!res.ok) {
+      return json({ reply: `Groq error: ${data.error?.message || JSON.stringify(data).slice(0,300)}` });
+    }
+
+    const reply = data.choices?.[0]?.message?.content || "No reply from AI";
+    return json({ reply });
+
+  } catch (e: any) {
+    return json({ reply: `Error: ${e.message}` });
   }
-})
+};
+
+export const GET: RequestHandler = async () => {
+  return json({ status: "Ghana AI Friend API is live 🇬🇭" });
+};
