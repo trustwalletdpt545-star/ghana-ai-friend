@@ -10,22 +10,23 @@ function Home() {
   const [history, setHistory] = useState<{q:string,a:string}[]>([])
 
   async function ask() {
-    if (!msg.trim()) return
+    const text = msg.trim()
+    if (!text) return
     setLoading(true)
-    const q = msg
-    setMsg('')
+    setReply('')
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: q })
+        body: JSON.stringify({ message: text })
       })
       const data = await res.json()
-      const ans = data.reply || data.message || 'No reply'
+      const ans = data.reply || JSON.stringify(data)
       setReply(ans)
-      setHistory(h => [{q, a: ans}, ...h])
-    } catch {
-      setReply('Error - check API key in Vercel')
+      setHistory(h => [{q: text, a: ans}, ...h])
+      setMsg('')
+    } catch (e:any) {
+      setReply('Error: ' + e.message + ' — check Vercel logs')
     }
     setLoading(false)
   }
@@ -47,18 +48,23 @@ function Home() {
             <input
               value={msg}
               onChange={e=>setMsg(e.target.value)}
-              onKeyDown={e=>e.key==='Enter'&&ask()}
+              onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault(); ask()}}}
               placeholder="E.g: How to make jollof? Wo ho te sɛn?"
               style={{flex:1, padding:'14px', borderRadius:'10px', border:'1px solid #ddd', fontSize:'16px'}}
             />
-            <button onClick={ask} disabled={loading} style={{background:'#CE1126', color:'white', border:'none', padding:'0 22px', borderRadius:'10px', fontWeight:'bold', cursor:'pointer'}}>
+            <button 
+              type="button"
+              onClick={ask} 
+              style={{background:'#CE1126', color:'white', border:'none', padding:'0 22px', borderRadius:'10px', fontWeight:'bold', cursor:'pointer', opacity: loading?0.6:1}}
+            >
               {loading?'...':'Ask'}
             </button>
           </div>
+          <div style={{marginTop:'8px', fontSize:'12px', color:'#888'}}>Tip: Press Enter or Ask button</div>
         </div>
 
         {reply && (
-          <div style={{background:'#006B3F', color:'white', borderRadius:'16px', padding:'18px', marginBottom:'16px', lineHeight:'1.6'}}>
+          <div style={{background:'#006B3F', color:'white', borderRadius:'16px', padding:'18px', marginBottom:'16px', lineHeight:'1.6', whiteSpace:'pre-wrap'}}>
             <div style={{fontSize:'12px', opacity:0.8, marginBottom:'6px'}}>GHANA AI FRIEND SAYS:</div>
             {reply}
           </div>
@@ -69,7 +75,7 @@ function Home() {
             {history.map((h,i)=>(
               <div key={i} style={{background:'white', borderRadius:'12px', padding:'14px', border:'1px solid #eee'}}>
                 <div style={{fontWeight:'bold', fontSize:'13px', color:'#CE1126'}}>You: {h.q}</div>
-                <div style={{marginTop:'6px', color:'#222'}}>{h.a}</div>
+                <div style={{marginTop:'6px', color:'#222', whiteSpace:'pre-wrap'}}>{h.a}</div>
               </div>
             ))}
           </div>
