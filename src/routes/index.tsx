@@ -1,86 +1,25 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { newId } from "@/lib/threads";
 
-export const Route = createFileRoute('/')({ component: Home })
+export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "Comfortable AI 🌍 — Ask Me Anything International" },
+      { name: "description", content: "AI chatbot built in Ghana for the world: nursing, education, Twi translation, coding and more." },
+      { property: "og:title", content: "Comfortable AI 🌍 — Ask Me Anything" },
+      { property: "og:description", content: "Built in Ghana for the World. Answers in English, Twi, Ga, Ewe and French." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  component: Index,
+});
 
-function Home() {
-  const [msg, setMsg] = useState('')
-  const [reply, setReply] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [history, setHistory] = useState<{q:string,a:string}[]>([])
-
-  async function ask() {
-    const text = msg.trim()
-    if (!text) return
-    setLoading(true)
-    setReply('')
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text })
-      })
-      const data = await res.json()
-      const ans = data.reply || JSON.stringify(data)
-      setReply(ans)
-      setHistory(h => [{q: text, a: ans}, ...h])
-      setMsg('')
-    } catch (e:any) {
-      setReply('Error: ' + e.message + ' — check Vercel logs')
-    }
-    setLoading(false)
-  }
-
-  return (
-    <div style={{minHeight:'100vh', background:'#FFF8E1', fontFamily:'system-ui'}}>
-      <div style={{background:'linear-gradient(90deg,#CE1126,#FCD116,#006B3F)', padding:'2px'}}>
-        <div style={{background:'white', padding:'12px 20px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-          <b style={{fontSize:'20px'}}>🇬🇭 Ghana AI Friend</b>
-          <span style={{fontSize:'12px', background:'#006B3F', color:'white', padding:'4px 10px', borderRadius:'20px'}}>LIVE</span>
-        </div>
-      </div>
-
-      <div style={{maxWidth:720, margin:'0 auto', padding:'20px'}}>
-        <div style={{background:'white', borderRadius:'16px', padding:'20px', boxShadow:'0 4px 20px rgba(0,0,0,0.08)', marginBottom:'16px'}}>
-          <h1 style={{margin:'0 0 6px', fontSize:'28px'}}>Akwaaba! 👋</h1>
-          <p style={{margin:0, color:'#666'}}>Your Ghanaian AI friend. Ask anything — Twi, English, Pidgin, history, food, code...</p>
-          <div style={{display:'flex', gap:'8px', marginTop:'14px'}}>
-            <input
-              value={msg}
-              onChange={e=>setMsg(e.target.value)}
-              onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault(); ask()}}}
-              placeholder="E.g: How to make jollof? Wo ho te sɛn?"
-              style={{flex:1, padding:'14px', borderRadius:'10px', border:'1px solid #ddd', fontSize:'16px'}}
-            />
-            <button 
-              type="button"
-              onClick={ask} 
-              style={{background:'#CE1126', color:'white', border:'none', padding:'0 22px', borderRadius:'10px', fontWeight:'bold', cursor:'pointer', opacity: loading?0.6:1}}
-            >
-              {loading?'...':'Ask'}
-            </button>
-          </div>
-          <div style={{marginTop:'8px', fontSize:'12px', color:'#888'}}>Tip: Press Enter or Ask button</div>
-        </div>
-
-        {reply && (
-          <div style={{background:'#006B3F', color:'white', borderRadius:'16px', padding:'18px', marginBottom:'16px', lineHeight:'1.6', whiteSpace:'pre-wrap'}}>
-            <div style={{fontSize:'12px', opacity:0.8, marginBottom:'6px'}}>GHANA AI FRIEND SAYS:</div>
-            {reply}
-          </div>
-        )}
-
-        {history.length>0 && (
-          <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
-            {history.map((h,i)=>(
-              <div key={i} style={{background:'white', borderRadius:'12px', padding:'14px', border:'1px solid #eee'}}>
-                <div style={{fontWeight:'bold', fontSize:'13px', color:'#CE1126'}}>You: {h.q}</div>
-                <div style={{marginTop:'6px', color:'#222', whiteSpace:'pre-wrap'}}>{h.a}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )
+function Index() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    navigate({ to: "/chat/$threadId", params: { threadId: newId() }, replace: true });
+  }, [navigate]);
+  return <div className="min-h-screen bg-background" />;
 }
