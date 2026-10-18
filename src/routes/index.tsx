@@ -1,53 +1,39 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/')({
-  component: Home,
-})
-
+export const Route = createFileRoute('/')({ component: Home })
 function Home() {
   const [input, setInput] = useState('')
-  const [messages, setMessages] = useState<{role: string, content: string}[]>([])
+  const [messages, setMessages] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
-
   const ask = async () => {
-    if (!input.trim()) return
-    const userMsg = input
-    setMessages(m => [...m, { role: 'user', content: userMsg }])
+    const text = input.trim()
+    if (!text) return
     setInput('')
+    setMessages(m => [...m, { role: 'user', content: text }])
     setLoading(true)
     try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMsg }),
-      })
+      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text }) })
       const data = await res.json()
-      const reply = data.choices?.[0]?.message?.content || data.reply || data.response || JSON.stringify(data)
+      console.log('API response', data)
+      if (!res.ok) throw new Error(data.error || JSON.stringify(data))
+      const reply = data.choices?.[0]?.message?.content || data.reply || JSON.stringify(data)
       setMessages(m => [...m, { role: 'assistant', content: reply }])
-    } catch (e) {
-      setMessages(m => [...m, { role: 'assistant', content: 'Error reaching live server. Check GROQ_API_KEY on Vercel.' }])
+    } catch (err: any) {
+      setMessages(m => [...m, { role: 'assistant', content: '❌ Error: ' + err.message }])
     }
     setLoading(false)
   }
-
   return (
-    <div style={{ maxWidth: 700, margin: '40px auto', padding: 20, fontFamily: 'system-ui' }}>
-      <h1>🇬🇭 Ghana AI Friend</h1>
-      <div style={{ minHeight: 300, border: '1px solid #ddd', borderRadius: 12, padding: 16, marginBottom: 16 }}>
-        {messages.length === 0 && <p>Ask me anything about Ghana!</p>}
-        {messages.map((m, i) => (
-          <div key={i} style={{ margin: '12px 0', textAlign: m.role === 'user' ? 'right' : 'left' }}>
-            <span style={{ background: m.role === 'user' ? '#007AFF' : '#f1f1f1', color: m.role === 'user' ? 'white' : 'black', padding: '8px 12px', borderRadius: 12, display: 'inline-block' }}>
-              {m.content}
-            </span>
-          </div>
-        ))}
-        {loading && <p>Thinking...</p>}
+    <div style={{ maxWidth: 700, margin: '20px auto', padding: 20 }}>
+      <h3>🇬🇭 Ghana AI Friend - DEBUG</h3>
+      <div style={{ border: '1px solid #ccc', minHeight: 250, padding: 10, marginBottom: 10 }}>
+        {messages.map((m,i) => <div key={i} style={{ margin: '8px 0', color: m.role==='user'?'blue':'black' }}><b>{m.role}:</b> {m.content}</div>)}
+        {loading && <p>Loading...</p>}
+        {messages.length===0 && <p>Ask me anything about Ghana!</p>}
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && ask()} placeholder="Ask..." style={{ flex: 1, padding: 12, borderRadius: 8, border: '1px solid #ccc' }} />
-        <button onClick={ask} disabled={loading} style={{ padding: '12px 20px', borderRadius: 8, background: '#007AFF', color: 'white', border: 0 }}>Ask</button>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter' && ask()} style={{ flex:1, padding:10 }} placeholder="Who are you" />
+        <button onClick={ask} style={{ padding:'10px 16px', background:'#0a7cff', color:'white', border:0, borderRadius:6 }}>Ask</button>
       </div>
     </div>
   )
