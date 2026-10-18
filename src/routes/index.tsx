@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 export const Route = createFileRoute('/')({ component: Home })
+
 function Home() {
   const [input, setInput] = useState('')
-  const [messages, setMessages] = useState<any[]>([])
+  const [messages, setMessages] = useState<{role:'user'|'assistant', content:string}[]>([])
   const [loading, setLoading] = useState(false)
+
   const ask = async () => {
     const text = input.trim()
     if (!text) return
@@ -12,28 +14,53 @@ function Home() {
     setMessages(m => [...m, { role: 'user', content: text }])
     setLoading(true)
     try {
-      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text }) })
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text })
+      })
       const data = await res.json()
-      console.log('API response', data)
-      if (!res.ok) throw new Error(data.error || JSON.stringify(data))
-      const reply = data.choices?.[0]?.message?.content || data.reply || JSON.stringify(data)
+      if (!res.ok) throw new Error(data.error || JSON.stringify(data).slice(0,200))
+      const reply = data.choices?.[0]?.message?.content || data.error || 'No reply'
       setMessages(m => [...m, { role: 'assistant', content: reply }])
-    } catch (err: any) {
-      setMessages(m => [...m, { role: 'assistant', content: '❌ Error: ' + err.message }])
+    } catch (e:any) {
+      setMessages(m => [...m, { role: 'assistant', content: '❌ '+ e.message + ' — Check Vercel Logs for /api/chat' }])
     }
     setLoading(false)
   }
+
   return (
-    <div style={{ maxWidth: 700, margin: '20px auto', padding: 20 }}>
-      <h3>🇬🇭 Ghana AI Friend - DEBUG</h3>
-      <div style={{ border: '1px solid #ccc', minHeight: 250, padding: 10, marginBottom: 10 }}>
-        {messages.map((m,i) => <div key={i} style={{ margin: '8px 0', color: m.role==='user'?'blue':'black' }}><b>{m.role}:</b> {m.content}</div>)}
-        {loading && <p>Loading...</p>}
-        {messages.length===0 && <p>Ask me anything about Ghana!</p>}
-      </div>
-      <div style={{ display: 'flex', gap: 6 }}>
-        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter' && ask()} style={{ flex:1, padding:10 }} placeholder="Who are you" />
-        <button onClick={ask} style={{ padding:'10px 16px', background:'#0a7cff', color:'white', border:0, borderRadius:6 }}>Ask</button>
+    <div style={{ minHeight:'100vh', background:'#FFF8F0', padding:'20px', fontFamily:'system-ui' }}>
+      <div style={{ maxWidth:700, margin:'0 auto' }}>
+        <h1 style={{ textAlign:'center', color:'#CE1126', fontSize:28 }}>🇬🇭 Ghana AI Friend</h1>
+        <h2 style={{ textAlign:'center', color:'#333' }}>Akwaaba!</h2>
+        <p style={{ textAlign:'center', color:'#666' }}>Your friendly AI about Ghana - Culture, Food, History, Twi & more</p>
+        
+        <div style={{ background:'white', borderRadius:16, padding:16, minHeight:350, boxShadow:'0 4px 12px rgba(0,0,0,0.08)', border:'1px solid #FCD116' }}>
+          {messages.length===0 && <p style={{ color:'#888', textAlign:'center', marginTop:80 }}>Ask me anything about Ghana! 🌍</p>}
+          {messages.map((m,i) => (
+            <div key={i} style={{ 
+              background: m.role==='user' ? '#006B3F' : '#FFF3CD', 
+              color: m.role==='user' ? 'white' : '#333',
+              padding:'10px 14px', borderRadius:12, margin:'10px 0',
+              alignSelf: m.role==='user' ? 'flex-end' : 'flex-start',
+              maxWidth:'85%'
+            }}>
+              {m.content}
+            </div>
+          ))}
+          {loading && <p style={{ color:'#CE1126' }}>Ghana AI is thinking... ⏳</p>}
+        </div>
+
+        <div style={{ display:'flex', gap:10, marginTop:16 }}>
+          <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter' && ask()}
+            placeholder="Ask about Ghana..." 
+            style={{ flex:1, padding:'14px', borderRadius:12, border:'2px solid #FCD116', outline:'none' }} />
+          <button onClick={ask} disabled={loading}
+            style={{ padding:'14px 22px', background:'#CE1126', color:'white', border:'none', borderRadius:12, fontWeight:'bold', cursor:'pointer' }}>
+            Ask
+          </button>
+        </div>
       </div>
     </div>
   )
